@@ -1,6 +1,8 @@
+import time
+
 from django.db.models.signals import post_save, pre_delete
 from django.db import models
-from django.dispatch import receiver
+from django.contrib.auth import get_user_model
 
 from elasticsearch.exceptions import (
     ConnectionTimeout,
@@ -8,6 +10,9 @@ from elasticsearch.exceptions import (
 )
 
 from autocompeter.main.search import TitleDoc
+
+
+User = get_user_model()
 
 
 def es_retry(callable, *args, **kwargs):
@@ -99,6 +104,7 @@ def update_es(instance, sender, **kwargs):
     # print("IN UPDATE_ES", doc)
     es_retry(doc.save)
 
+
 post_save.connect(update_es, sender=Title)
 
 
@@ -114,12 +120,14 @@ def remove_from_es(instance, sender, **kwargs):
             instance
         ))
 
+
 pre_delete.connect(remove_from_es, sender=Title)
 
 
 class Key(models.Model):
     domain = models.ForeignKey(Domain)
     key = models.TextField(db_index=True, unique=True)
+    user = models.ForeignKey(User)
     modified = models.DateTimeField(auto_now=True)
 
     def __str__(self):

@@ -370,7 +370,7 @@ Autocompeter(
                         <td><code>{{ key.domain.name }}</code></td>
                         <td><code>{{ key.key }}</code></td>
                         <td>
-                          <form action="/domainkeys/delete" method="post">
+                          <form action="" method="post">
                             {% csrf_token %}
                             <input type="hidden" name="key" value="{{ key.key }}">
                             <button class="delete-key btn btn-default btn-xs">Delete</button>
@@ -381,7 +381,7 @@ Autocompeter(
                     </tbody>
                   </table>
 
-                  <form action="/domainkeys/new" method="post">
+                  <form action="" method="post">
                     {% csrf_token %}
                     <div class="form-group">
                       <!-- <label for="id_domain">Domain</label> -->
