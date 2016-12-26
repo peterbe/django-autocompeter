@@ -4,7 +4,7 @@ from django.conf.urls.static import static
 
 import autocompeter.main.urls
 import autocompeter.api.urls
-import autocompeter.auth.urls
+import autocompeter.authentication.urls
 
 
 urlpatterns = [
@@ -14,7 +14,7 @@ urlpatterns = [
     ),
     url(
         r'^auth/',
-        include(autocompeter.auth.urls.urlpatterns, namespace='auth')
+        include(autocompeter.authentication.urls.urlpatterns, namespace='auth')
     ),
     url(
         r'^v1/?',

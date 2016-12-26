@@ -1,6 +1,6 @@
 from django.conf.urls import url
 
-from autocompeter.auth import views
+from autocompeter.authentication import views
 
 
 urlpatterns = [
