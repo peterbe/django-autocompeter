@@ -35,20 +35,27 @@ ALLOWED_HOSTS = config('ALLOWED_HOSTS', cast=Csv())
 # Application definition
 
 INSTALLED_APPS = [
+    'django.contrib.auth',
     'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
     'django.contrib.postgres',
+    'django.contrib.staticfiles',
 
     'autocompeter.main',
+    # 'autocompeter.auth',
     'autocompeter.api',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    # 'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
-    # 'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'django.contrib.sites.middleware.CurrentSiteMiddleware',
 ]
 
 ROOT_URLCONF = 'autocompeter.urls'
@@ -62,6 +69,8 @@ TEMPLATES = [
             'context_processors': [
                 'django.template.context_processors.debug',
                 'django.template.context_processors.request',
+                'django.contrib.messages.context_processors.messages',
+                'autocompeter.auth.context_processors.auth0',
             ],
         },
     },
@@ -73,25 +82,10 @@ WSGI_APPLICATION = 'autocompeter.wsgi.application'
 DATABASES = {
     'default': config(
         'DATABASE_URL',
-        # default='postgresql://localhost/autocompeter',
-        # default='postgresql://postgres@0.0.0.0:5432/postgres',
-        # default='postgresql://postgres@0.0.0.0:5432/postgres',
         default='postgres://postgres@db:5432/postgres',
         cast=dj_database_url.parse
     )
 }
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.postgresql',
-#         'NAME': 'postgres',
-#         'USER': 'postgres',
-#         'HOST': 'db',
-#         'PORT': 5432,
-#     }
-# }
-# WORKS: {'default': {'PORT': 5432, 'HOST': 'db', 'ENGINE': 'django.db.backends.postgresql', 'NAME': 'postgres', 'USER': 'postgres'}}
-# FAILS: {'default': {'CONN_MAX_AGE': 0, 'PORT': 5432, 'NAME': 'postgres', 'ENGINE': 'django.db.backends.postgresql_psycopg2', 'PASSWORD': '', 'HOST': '', 'USER': 'postgres'}}
-# print(DATABASES)
 
 CACHES = {
     'default': {
@@ -117,12 +111,22 @@ USE_L10N = False
 USE_TZ = True
 
 
+SESSION_COOKIE_AGE = 60 * 60 * 24 * 365
+
+
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.10/howto/static-files/
 
 STATIC_URL = '/static/'
 
+STATICFILES_DIRS = [
+    # os.path.join(BASE_DIR, "static"), # XXX path()?
+    os.path.abspath(os.path.join(BASE_DIR, "../dist")),
+    # '/var/www/static/',
+]
 
+
+STATIC_ROOT = os.path.join(BASE_DIR, "static")
 # ElasticSearch
 
 ES_INDEX = 'autocompeter'
@@ -137,6 +141,14 @@ ES_CONNECTIONS = {
         'hosts': ['elasticsearch:9200']
     },
 }
+
+AUTH0_CLIENT_ID = config('AUTH0_CLIENT_ID', 'FCTzKEnD2H88IuYWJredjYH6fWgp0FlM')
+AUTH0_DOMAIN = config('AUTH0_DOMAIN', 'peterbecom.auth0.com')
+AUTH0_CALLBACK_URL = config('AUTH0_CALLBACK_URL', '/auth/callback')
+AUTH0_SIGNOUT_URL = config('AUTH0_SIGNOUT_URL', '/')
+AUTH0_SUCCESS_URL = config('AUTH0_SUCCESS_URL', 'main:home')
+AUTH0_CLIENT_SECRET = config('AUTH0_CLIENT_SECRET', '')
+AUTH0_PATIENCE_TIMEOUT = config('AUTH0_PATIENCE_TIMEOUT', 5, cast=int)
 
 
 if 'test' in sys.argv[1:2]:
