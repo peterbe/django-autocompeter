@@ -372,7 +372,7 @@ Autocompeter(
                         <td>
                           <form action="" method="post">
                             {% csrf_token %}
-                            <input type="hidden" name="key" value="{{ key.key }}">
+                            <input type="hidden" name="delete" value="{{ key.key }}">
                             <button class="delete-key btn btn-default btn-xs">Delete</button>
                           </form>
                         </td>
