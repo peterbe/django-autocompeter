@@ -2,7 +2,7 @@ import time
 
 from django.db.models.signals import post_save, pre_delete
 from django.db import models
-from django.contrib.auth import get_user_model
+from django.contrib.auth.models import User
 
 from elasticsearch.exceptions import (
     ConnectionTimeout,
@@ -12,8 +12,7 @@ from elasticsearch.exceptions import (
 from autocompeter.main.search import TitleDoc
 
 
-User = get_user_model()
-
+# User = get_user_model()
 
 def es_retry(callable, *args, **kwargs):
     sleep_time = kwargs.pop('_sleep_time', 1)
