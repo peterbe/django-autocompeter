@@ -4,7 +4,8 @@ html {
     height: 100%;
 }
 
-body,
+p,
+li,
 h1,
 h2,
 h3,
@@ -12,7 +13,7 @@ h4,
 h5,
 h6 {
     font-family: "Lato","Helvetica Neue",Helvetica,Arial,sans-serif;
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .topnav {
@@ -161,4 +162,8 @@ footer {
 
 p.copyright {
     margin: 15px 0 0;
+}
+
+table.fetches td {
+    text-align: right;
 }

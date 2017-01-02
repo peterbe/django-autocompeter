@@ -15,6 +15,11 @@ urlpatterns = [
         name='ping'
     ),
     url(
+        r'^stats$',
+        views.stats,
+        name='stats'
+    ),
+    url(
         r'',
         views.home,
         name='home'

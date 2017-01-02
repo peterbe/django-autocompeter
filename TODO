@@ -6,9 +6,11 @@ TODO
 
 * Complete e2e suite
   (creates, bulk creates, deletes, flushes, groups, popularity sort,
-typos)
+typos, duplicate add, duplicate add url different title)
 
 DONE
 
 * Filter by groups
   https://github.com/elastic/elasticsearch-dsl-py/issues/545
+
+  * Stats endpoint

@@ -351,9 +351,7 @@ Autocompeter(
                 </div>
                 <div class="col-lg-5 col-lg-offset-2 col-sm-6">
                   {% if request.user.is_authenticated %}
-                  <p class="lead">
-                    Here are the Auth-Keys you have generated:
-                  </p>
+                  <h2 class="section-heading">Your Auth-Keys</h2>
 
                   <table class="table">
                     <thead>
@@ -386,6 +384,68 @@ Autocompeter(
                     </div>
                     <button type="submit" class="btn btn-primary">Generate new key</button>
                   </form>
+
+                  {% if domains %}
+                  <h2 class="section-heading" style="margin-top: 60px">
+                    Your Domain Stats
+                  </h2>
+                  <table class="table">
+                    <thead>
+                      <tr>
+                        <th>Domain</th>
+                        <th>Searches</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for domain in domains %}
+                      <tr>
+                        <td>
+                          <code>{{ domain.name }}</code>
+                          <br />
+                          {{ domain.no_documents }} indexed documents
+                        </td>
+                        <td>
+                          <table class="table table-condensed fetches">
+                            <thead>
+                              <tr>
+                                <th>Year</th>
+                                <th>Month</th>
+                                <th>Searches</th>
+                              </tr>
+                            </thead>
+                            <tfoot>
+                              <tr>
+                                <td colspan="2">
+                                  Total
+                                </td>
+                                <td class="number">
+                                  {{ domain.fetch_total }}
+                                </td>
+                              </tr>
+                            </tfoot>
+                            <tbody>
+                              {% for f in domain.fetch_months %}
+                              <tr>
+                                <td>
+                                  {{ f.year }}
+                                </td>
+                                <td>
+                                  {{ f.month }}
+                                </td>
+                                <td class="number">
+                                  {{ f.fetches }}
+                                </td>
+                              </tr>
+                              {% endfor %}
+                            </tbody>
+                          </table>
+                        </td>
+                      </tr>
+                    {% endfor %}
+                    </tbody>
+                  </table>
+                  {% endif %}
+
                   {% else %}
                   <h2 class="section-heading">Examples of Use</h2>
                   <p class="lead">

@@ -10,37 +10,45 @@ from elasticsearch.exceptions import ConnectionTimeout
 
 from django import http
 from django.conf import settings
+from django.db.models import Count
 from django.views.decorators.csrf import csrf_exempt
+from django.db.models.functions import TruncMonth
 
 from autocompeter.main.models import Key, Domain, Search
 from autocompeter.main.search import TitleDoc
 
 
-def auth_key(func):
+def auth_key(methods):
+    if isinstance(methods, str):
+        methods = [methods]
 
-    @functools.wraps(func)
-    def inner(request, *args):
-        if request.method == 'GET':
-            return func(request, None, *args)
-        try:
-            auth_key = request.META['HTTP_AUTH_KEY']
-            assert auth_key
-        except (AttributeError, AssertionError):
-            # XXX check what autocompeter Go does
-            return http.JsonResponse({
-                'error': "Missing header 'Auth-Key'",
-            }, status=400)
-        try:
-            key = Key.objects.get(key=auth_key)
-        except Key.DoesNotExist:
-            # XXX check what autocompeter Go does
-            return http.JsonResponse({
-                'error': "Auth-Key not recognized",
-            }, status=403)
-        domain = Domain.objects.get(key=key)
-        return func(request, domain, *args)
+    def wrapper(func):
 
-    return inner
+        @functools.wraps(func)
+        def inner(request, *args):
+            if request.method not in methods:
+                return func(request, None, *args)
+            try:
+                auth_key = request.META['HTTP_AUTH_KEY']
+                assert auth_key
+            except (AttributeError, AssertionError):
+                # XXX check what autocompeter Go does
+                return http.JsonResponse({
+                    'error': "Missing header 'Auth-Key'",
+                }, status=400)
+            try:
+                key = Key.objects.get(key=auth_key)
+            except Key.DoesNotExist:
+                # XXX check what autocompeter Go does
+                return http.JsonResponse({
+                    'error': "Auth-Key not recognized",
+                }, status=403)
+            domain = Domain.objects.get(key=key)
+            return func(request, domain, *args)
+
+        return inner
+
+    return wrapper
 
 
 def es_retry(callable, *args, **kwargs):
@@ -67,7 +75,7 @@ def make_id(*bits):
     return hashlib.md5(''.join(bits).encode('utf-8')).hexdigest()
 
 
-@auth_key
+@auth_key('POST')
 @csrf_exempt
 def home(request, domain):
     if request.method == 'POST':
@@ -95,9 +103,13 @@ def home(request, domain):
         q = request.GET.get('q', '')
         if not q:
             return http.JsonResponse({'error': "Missing 'q'"}, status=400)
-        domain = request.GET.get('d', '').strip()
-        if not domain:
+        d = request.GET.get('d', '').strip()
+        if not d:
             return http.JsonResponse({'error': "Missing 'd'"}, status=400)
+        try:
+            domain = Domain.objects.get(name=d)
+        except Domain.DoesNotExist:
+            return http.JsonResponse({'error': "Unrecognized 'd'"}, status=400)
         groups = request.GET.get('g', '').strip()
         groups = [x.strip() for x in groups.split(',') if x.strip()]
 
@@ -120,7 +132,7 @@ def home(request, domain):
                     )
         results = []
 
-        search = search.filter('term', domain=domain)
+        search = search.filter('term', domain=domain.name)
         query = Q('match_phrase', title=terms[0])
         for term in terms[1:]:
             query |= Q('match_phrase', title=term)
@@ -152,7 +164,7 @@ def home(request, domain):
         })
 
 
-@auth_key
+@auth_key('POST')
 @csrf_exempt
 def bulk(request, domain):
     assert domain
@@ -198,3 +210,36 @@ def bulk(request, domain):
 
 def ping(request):
     return http.HttpResponse('pong')
+
+
+@auth_key('GET')
+def stats(request, domain):
+    assert domain
+    fetches, documents = stats_by_domain(domain)
+    return http.JsonResponse({
+        'fetches': fetches,
+        'documents': documents,
+    })
+
+
+def stats_by_domain(domain):
+    searches = (
+        Search.objects
+        .annotate(month=TruncMonth('created'))
+        .values('month')
+        .annotate(count=Count('id'))
+        .values('month', 'count')
+    )
+    fetches = {}
+    for s in searches:
+        year = str(s['month'].year)
+        month = str(s['month'].month)
+        if year not in fetches:
+            fetches[year] = {}
+        fetches[year][month] = s['count']
+
+    search = TitleDoc.search()
+    search = search.filter('term', domain=domain.name)
+    documents = search.execute().hits.total
+
+    return fetches, documents

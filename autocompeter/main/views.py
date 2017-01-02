@@ -6,6 +6,7 @@ from django.shortcuts import render, redirect
 from django.contrib import messages
 
 from autocompeter.main.models import Domain, Key
+from autocompeter.api.views import stats_by_domain
 
 
 def generate_new_key(length=24):
@@ -64,10 +65,29 @@ def home(request):
             )
         else:
             raise NotImplementedError
+
     if request.user.is_authenticated:
         context['keys'] = Key.objects.filter(
             user=request.user
         ).order_by('domain__name', 'key')
+        domains = set(x.domain for x in context['keys'])
+        context['domains'] = domains
+        for domain in domains:
+            fetches, no_documents = stats_by_domain(domain)
+            domain.no_documents = no_documents
+            total = 0
+            fetch_months = []
+            for year in sorted(fetches):
+                for month in sorted(fetches[year], key=lambda x: int(x)):
+                    count = fetches[year][month]
+                    fetch_months.append({
+                        'year': int(year),
+                        'month': int(month),
+                        'fetches': count
+                    })
+                    total += count
+            domain.fetch_months = fetch_months
+            domain.fetch_total = total
     else:
         context['keys'] = []
 
