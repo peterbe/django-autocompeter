@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 {% load static %}
-
 <head>
 
     <meta charset="utf-8">
@@ -311,7 +310,6 @@ Autocompeter(
                     </p>
                 </div>
                 <div class="col-lg-5 col-lg-offset-2 col-sm-6">
-                    <!-- <img class="img-responsive" src="img/ipad.png" alt=""> -->
                     <h2 class="section-heading">Bugs?</h2>
                     <p class="lead">
                       Just <a href="https://github.com/peterbe/autocompeter/issues/new">file an issue</a>
@@ -384,7 +382,6 @@ Autocompeter(
                   <form action="" method="post">
                     {% csrf_token %}
                     <div class="form-group">
-                      <!-- <label for="id_domain">Domain</label> -->
                       <input type="text" name="domain" class="form-control" id="id_domain" placeholder="e.g. autocompeter.com">
                     </div>
                     <button type="submit" class="btn btn-primary">Generate new key</button>
@@ -419,8 +416,8 @@ Autocompeter(
                       <a href="/examples/skeleton/index.html">
                         Skeleton (mock)
                       </a>
-                    </li> -->
-                    <!-- <li>
+                    </li>
+                    <li>
                       <a href="/examples/purecss/index.html">
                         PureCSS (mock)
                       </a>
@@ -479,14 +476,11 @@ Autocompeter(
     <!-- jQuery -->
     <script src="{% static "main/js/jquery.js" %}"></script>
 
-    <!-- Bootstrap Core JavaScript -->
-    <script src="{% static "main/js/bootstrap.min.js" %}"></script>
     <!-- specific to just this page -->
     <script>
-    $('pre').eq(2).text($('link').eq(3)[0].outerHTML);
+    $('pre').eq(2).text($('link').eq(2)[0].outerHTML);
     $('pre').eq(3).text('<input type="text" name="q" placeholder="Type something">');
     $('pre').eq(4).text($('script').eq(0)[0].outerHTML);
-    // $('pre').eq(4).text($('script').eq(1)[0].outerHTML);
     </script>
     {% if not DEBUG %}
     <script>
@@ -520,7 +514,6 @@ Autocompeter(
          }
       });
     </script>
-
 </body>
 
 </html>

@@ -107,13 +107,13 @@ SESSION_COOKIE_AGE = 60 * 60 * 24 * 365
 STATIC_URL = '/static/'
 
 STATICFILES_DIRS = [
-    # os.path.join(BASE_DIR, "static"), # XXX path()?
-    os.path.abspath(os.path.join(BASE_DIR, "../dist")),
-    # '/var/www/static/',
+    os.path.abspath(os.path.join(BASE_DIR, '../dist')),
 ]
 
 
-STATIC_ROOT = os.path.join(BASE_DIR, "static")
+STATIC_ROOT = os.path.join(BASE_DIR, 'static')
+
+
 # ElasticSearch
 
 ES_INDEX = 'autocompeter'

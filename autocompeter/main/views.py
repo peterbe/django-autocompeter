@@ -1,6 +1,7 @@
 import random
 from urllib.parse import urlparse
 
+from django.conf import settings
 from django.shortcuts import render, redirect
 from django.contrib import messages
 
@@ -70,4 +71,5 @@ def home(request):
     else:
         context['keys'] = []
 
+    context['DEBUG'] = settings.DEBUG
     return render(request, 'main/home.html', context)

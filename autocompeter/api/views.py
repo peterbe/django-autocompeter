@@ -1,11 +1,18 @@
+import hashlib
 import json
 import functools
+import time
 
-# from django.shortcuts import render
+from elasticsearch_dsl.connections import connections
+from elasticsearch.helpers import streaming_bulk
+from elasticsearch_dsl.query import Q
+from elasticsearch.exceptions import ConnectionTimeout
+
 from django import http
+from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 
-from autocompeter.main.models import Title, Key, Domain, Search
+from autocompeter.main.models import Key, Domain, Search
 from autocompeter.main.search import TitleDoc
 
 
@@ -36,57 +43,50 @@ def auth_key(func):
     return inner
 
 
+def es_retry(callable, *args, **kwargs):
+    sleep_time = kwargs.pop('_sleep_time', 1)
+    attempts = kwargs.pop('_attempts', 10)
+    verbose = kwargs.pop('_verbose', False)
+    try:
+        return callable(*args, **kwargs)
+    except (ConnectionTimeout,) as exception:
+        if attempts:
+            attempts -= 1
+            if verbose:
+                print("ES Retrying ({} {}) {}".format(
+                    attempts,
+                    sleep_time,
+                    exception
+                ))
+            time.sleep(sleep_time)
+        else:
+            raise
+
+
+def make_id(*bits):
+    return hashlib.md5(''.join(bits).encode('utf-8')).hexdigest()
+
+
 @auth_key
 @csrf_exempt
 def home(request, domain):
-    # print(request.META.keys())
-
     if request.method == 'POST':
-        # print("BODY", request.body)
         url = request.POST['url'].strip()
         assert url
         title = request.POST['title'].strip()
         assert title
         group = request.POST.get('group', '').strip()
         popularity = float(request.POST.get('popularity', 0.0))
-        # for x in Title.objects.all():
-        #     x.delete()
-        Title.upsert(
-            domain,
-            url,
-            title,
-            group=group,
-            popularity=popularity,
-        )
-        # try:
-        #     found = Title.objects.get(
-        #         domain=domain,
-        #         # value=title,
-        #         url=url,
-        #     )
-        #     print("FOUND", repr(found))
-        #     different = not (
-        #         found.value == title and
-        #         found.popularity == popularity and
-        #         found.group == group
-        #     )
-        #     if different:
-        #         found.value = title
-        #         found.group = group
-        #         found.popularity = popularity
-        #         found.save()
-        # except Title.DoesNotExist:
-        #     print("NOT FOUND")
-        #     Title.objects.create(
-        #         domain=domain,
-        #         value=title,
-        #         url=url,
-        #         popularity=popularity,
-        #         group=group
-        #     )
-        #     print("CREATED")
-        # for thing in request.POST.items():
-        #     print("THING", thing)
+
+        doc = {
+            # 'id': make_id(domain.name, url),
+            'domain': domain.name,
+            'url': url,
+            'title': title,
+            'group': group,
+            'popularity': popularity,
+        }
+        es_retry(TitleDoc(meta={'id': make_id(domain.name, url)}, **doc).save)
         return http.JsonResponse({'message': 'OK'}, status=201)
     elif request.method == 'DELETE':
         print(dir(request))
@@ -98,84 +98,102 @@ def home(request, domain):
         domain = request.GET.get('d', '').strip()
         if not domain:
             return http.JsonResponse({'error': "Missing 'd'"}, status=400)
+        groups = request.GET.get('g', '').strip()
+        groups = [x.strip() for x in groups.split(',') if x.strip()]
+
         size = int(request.GET.get('n', 10))
+
+        terms = [q]
+
+        search = TitleDoc.search()
+
+        # Only bother if the search term is long enough
+        if len(q) > 2:
+            suggestion = search.suggest('suggestions', q, term={
+                'field': 'title',
+            })
+            suggestions = suggestion.execute_suggest()
+            for suggestion in suggestions.suggestions:
+                for option in suggestion.options:
+                    terms.append(
+                        q.replace(suggestion.text, option.text)
+                    )
         results = []
-        search = TitleDoc.search()
 
-        print(Domain.objects.all().count(), "__DOMAINS__")
-        for domain in Domain.objects.all().order_by('name'):
-            print(
-                '  ',
-                domain.name,
-                Title.objects.filter(domain=domain).count(), 'titles',
-            )
-            print(
-                '  ',
-                'Keys:',
-                [x.key for x in Key.objects.filter(domain=d)]
-            )
-            print()
+        search = search.filter('term', domain=domain)
+        query = Q('match_phrase', title=terms[0])
+        for term in terms[1:]:
+            query |= Q('match_phrase', title=term)
 
-        # # search = search.filter()
-        # # XXX needs to "filter" on domain and group
-        # search = search.suggest('title_suggestions', q, completion={
-        #     'field': 'value_suggest',
-        #     'size': size,
-        # })
-        #
-        # # XXX needs to sort my popularity
-        # response = search.execute_suggest()
+        if groups:
+            # first, always include the empty group
+            query &= Q('terms', group=[''] + groups)
+        else:
+            query &= Q('term', group='')
 
-        # for suggestion in response.title_suggestions:
-        #     print("SUGGESTION", suggestion)
-        #     for option in suggestion.options:
-        #         print("TEXT", option.text, option._score)
-
-        # print("RESPONSE", response)
-        # print("RESPONSE", dir(response))
-        # for hit in response
-        # for title in Title.objects.all():
-        #     print(title)
-        # for hit in response.hits:
-        #     print('\tHIT', hit.to_dict())
-        # print(Title.objects.all())
-        # for x in Title.objects.all():
-        #     print(x.value)
-        search = TitleDoc.search()
-        search = search.query('match_phrase_prefix', value=q)
+        search = search.query(query)
+        search = search.sort('-popularity', '_score')
+        search = search[:size]
         response = search.execute()
         for hit in response.hits:
-            # print(hit.value, hit.url)
             results.append([
                 hit.url,
-                hit.value,
+                hit.title,
 
             ])
-            # print('\t', hit.to_dict())
+        Search.objects.create(
+            domain=domain,
+            term=q,
+            results=len(results),
+        )
         return http.JsonResponse({
             'results': results,
-            'terms': q,
+            'terms': terms,
         })
 
 
 @auth_key
 @csrf_exempt
 def bulk(request, domain):
-    # print(repr(request.body.decode('utf-8')))
     assert domain
 
     documents = json.loads(request.body.decode('utf-8'))['documents']
-    # print(documents)
-    for document in documents:
-        Title.upsert(
-            domain,
-            url=document['url'],
-            value=document['title'],
-            popularity=float(document.get('popularity', 0.0)),
-            group=document.get('group', ''),
-        )
-    # raise NotImplementedError
-    return http.JsonResponse({'message': 'OK'}, status=201)
+
+    def iterator():
+        for document in documents:
+            url = document['url'].strip()
+            yield TitleDoc(
+                meta={'id': make_id(domain.name, url)},
+                **{
+                    'domain': domain.name,
+                    'url': url,
+                    'title': document['title'].strip(),
+                    'group': document.get('group', '').strip(),
+                    'popularity': float(document.get('popularity', 0.0)),
+                }
+            ).to_dict(True)
+
+    count = failures = 0
+
+    t0 = time.time()
+    for success, doc in streaming_bulk(
+        connections.get_connection(),
+        iterator(),
+        index=settings.ES_INDEX,
+        doc_type='title_doc',
+    ):
+        if not success:
+            print("NOT SUCCESS!", doc)
+            failures += 1
+        count += 1
+    t1 = time.time()
+
+    return http.JsonResponse({
+        'message': 'OK',
+        'count': count,
+        'failures': failures,
+        'took': t1 - t0,
+    }, status=201)
 
 
 def ping(request):
