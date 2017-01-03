@@ -1,10 +1,8 @@
 TODO
-
-* Complete e2e suite
-  (creates, bulk creates, deletes, flushes, groups, popularity sort,
-typos, duplicate add, duplicate add url different title)
+====
 
 DONE
+====
 
 * Filter by groups
   https://github.com/elastic/elasticsearch-dsl-py/issues/545
@@ -14,3 +12,7 @@ DONE
 * Delete endpoint
 
 * Flush endpoint
+
+* Complete e2e suite
+  (creates, bulk creates, deletes, flushes, groups, popularity sort,
+typos, duplicate add, duplicate add url different title)
