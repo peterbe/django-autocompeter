@@ -79,10 +79,10 @@ def make_id(*bits):
 @csrf_exempt
 def home(request, domain):
     if request.method == 'POST':
-        url = request.POST['url'].strip()
+        url = request.POST.get('url', '').strip()
         if not url:
             return http.JsonResponse({'error': "Missing 'url'"}, status=400)
-        title = request.POST['title'].strip()
+        title = request.POST.get('title', '').strip()
         if not title:
             return http.JsonResponse({'error': "Missing 'title'"}, status=400)
         group = request.POST.get('group', '').strip()
@@ -96,6 +96,7 @@ def home(request, domain):
             'popularity': popularity,
         }
         t0 = time.time()
+        # print("INSERTING", doc)
         es_retry(TitleDoc(meta={'id': make_id(domain.name, url)}, **doc).save)
         t1 = time.time()
         return http.JsonResponse({
@@ -184,7 +185,10 @@ def home(request, domain):
 def bulk(request, domain):
     assert domain
 
-    documents = json.loads(request.body.decode('utf-8'))['documents']
+    try:
+        documents = json.loads(request.body.decode('utf-8'))['documents']
+    except KeyError:
+        return http.JsonResponse({'error': "Missing 'documents'"}, status=400)
 
     def iterator():
         for document in documents:
