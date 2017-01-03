@@ -95,15 +95,25 @@ def home(request, domain):
             'group': group,
             'popularity': popularity,
         }
+        t0 = time.time()
         es_retry(TitleDoc(meta={'id': make_id(domain.name, url)}, **doc).save)
-        return http.JsonResponse({'message': 'OK'}, status=201)
+        t1 = time.time()
+        return http.JsonResponse({
+            'message': 'OK',
+            'took': t1 - t0,
+        }, status=201)
     elif request.method == 'DELETE':
         url = request.GET.get('url', '').strip()
         if not url:
             return http.JsonResponse({'error': "Missing 'url'"}, status=400)
+        t0 = time.time()
         doc = TitleDoc.get(id=make_id(domain.name, url))
         doc.delete()
-        return http.JsonResponse({'message': 'OK'})
+        t1 = time.time()
+        return http.JsonResponse({
+            'message': 'OK',
+            'took': t1 - t0,
+        })
     else:
         q = request.GET.get('q', '')
         if not q:
@@ -258,6 +268,7 @@ def flush(request, domain):
     # Or the new API
     # https://www.elastic.co/guide/en/elasticsearch/reference/5.1/docs-delete-by-query.html  # NOQA
     assert domain
+    t0 = time.time()
     search = TitleDoc.search()
     search = search.filter('term', domain=domain.name)
     ids = set()
@@ -265,4 +276,8 @@ def flush(request, domain):
         ids.add(hit._id)
     for _id in ids:
         TitleDoc.get(id=_id).delete()
-    return http.JsonResponse({'messsage': 'OK'})
+    t1 = time.time()
+    return http.JsonResponse({
+        'messsage': 'OK',
+        'took': t1 - t0,
+    })
