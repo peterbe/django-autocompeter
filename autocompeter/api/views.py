@@ -18,9 +18,9 @@ from autocompeter.main.models import Key, Domain, Search
 from autocompeter.main.search import TitleDoc
 
 
-def auth_key(methods):
-    if isinstance(methods, str):
-        methods = [methods]
+def auth_key(*methods):
+    # if isinstance(methods, str):
+    #     methods = [methods]
 
     def wrapper(func):
 
@@ -31,7 +31,7 @@ def auth_key(methods):
             try:
                 auth_key = request.META['HTTP_AUTH_KEY']
                 assert auth_key
-            except (AttributeError, AssertionError):
+            except (AttributeError, AssertionError, KeyError):
                 # XXX check what autocompeter Go does
                 return http.JsonResponse({
                     'error': "Missing header 'Auth-Key'",
@@ -75,19 +75,20 @@ def make_id(*bits):
     return hashlib.md5(''.join(bits).encode('utf-8')).hexdigest()
 
 
-@auth_key('POST')
+@auth_key('POST', 'DELETE')
 @csrf_exempt
 def home(request, domain):
     if request.method == 'POST':
         url = request.POST['url'].strip()
-        assert url
+        if not url:
+            return http.JsonResponse({'error': "Missing 'url'"}, status=400)
         title = request.POST['title'].strip()
-        assert title
+        if not title:
+            return http.JsonResponse({'error': "Missing 'title'"}, status=400)
         group = request.POST.get('group', '').strip()
         popularity = float(request.POST.get('popularity', 0.0))
 
         doc = {
-            # 'id': make_id(domain.name, url),
             'domain': domain.name,
             'url': url,
             'title': title,
@@ -97,8 +98,12 @@ def home(request, domain):
         es_retry(TitleDoc(meta={'id': make_id(domain.name, url)}, **doc).save)
         return http.JsonResponse({'message': 'OK'}, status=201)
     elif request.method == 'DELETE':
-        print(dir(request))
-        raise Exception
+        url = request.GET.get('url', '').strip()
+        if not url:
+            return http.JsonResponse({'error': "Missing 'url'"}, status=400)
+        doc = TitleDoc.get(id=make_id(domain.name, url))
+        doc.delete()
+        return http.JsonResponse({'message': 'OK'})
     else:
         q = request.GET.get('q', '')
         if not q:
@@ -243,3 +248,21 @@ def stats_by_domain(domain):
     documents = search.execute().hits.total
 
     return fetches, documents
+
+
+@auth_key('DELETE', 'POST')
+@csrf_exempt
+def flush(request, domain):
+    # Should use the delete-by-query plugin
+    # http://blog.appliedinformaticsinc.com/how-to-delete-elasticsearch-data-records-by-dsl-query/ # NOQA
+    # Or the new API
+    # https://www.elastic.co/guide/en/elasticsearch/reference/5.1/docs-delete-by-query.html  # NOQA
+    assert domain
+    search = TitleDoc.search()
+    search = search.filter('term', domain=domain.name)
+    ids = set()
+    for hit in search.scan():
+        ids.add(hit._id)
+    for _id in ids:
+        TitleDoc.get(id=_id).delete()
+    return http.JsonResponse({'messsage': 'OK'})

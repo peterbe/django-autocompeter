@@ -20,6 +20,11 @@ urlpatterns = [
         name='stats'
     ),
     url(
+        r'^flush$',
+        views.flush,
+        name='flush'
+    ),
+    url(
         r'',
         views.home,
         name='home'
