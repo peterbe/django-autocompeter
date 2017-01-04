@@ -146,3 +146,4 @@ if 'test' in sys.argv[1:2]:
             'LOCATION': 'unique-snowflake',
         }
     }
+    ES_INDEX = 'test_autocompeter'

@@ -141,7 +141,7 @@ def home(request, domain):
                 'field': 'title',
             })
             suggestions = suggestion.execute_suggest()
-            for suggestion in suggestions.suggestions:
+            for suggestion in getattr(suggestions, 'suggestions', []):
                 for option in suggestion.options:
                     terms.append(
                         q.replace(suggestion.text, option.text)
@@ -192,13 +192,18 @@ def bulk(request, domain):
 
     def iterator():
         for document in documents:
-            url = document['url'].strip()
+            url = document.get('url', '').strip()
+            if not url:
+                continue
+            title = document.get('title', '').strip()
+            if not title:
+                continue
             yield TitleDoc(
                 meta={'id': make_id(domain.name, url)},
                 **{
                     'domain': domain.name,
                     'url': url,
-                    'title': document['title'].strip(),
+                    'title': title,
                     'group': document.get('group', '').strip(),
                     'popularity': float(document.get('popularity', 0.0)),
                 }
@@ -271,6 +276,8 @@ def flush(request, domain):
     # http://blog.appliedinformaticsinc.com/how-to-delete-elasticsearch-data-records-by-dsl-query/ # NOQA
     # Or the new API
     # https://www.elastic.co/guide/en/elasticsearch/reference/5.1/docs-delete-by-query.html  # NOQA
+    # Perhaps we can use
+    # connections.get_connection().delete_by_query ?!?!
     assert domain
     t0 = time.time()
     search = TitleDoc.search()
